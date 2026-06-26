@@ -188,9 +188,34 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
   };
 
   const handleDownloadCompleted = async () => {
+    const choice = window.prompt(
+      "Lütfen indirmek istediğiniz veri setini seçin:\n\n" +
+      "1 - Tüm Tamamlanan Vakalar (Tek dosya)\n" +
+      "2 - Kısım 1 (İlk 1000 vaka içindeki tamamlananlar)\n" +
+      "3 - Kısım 2 (Son 1000 vaka içindeki tamamlananlar)\n\n" +
+      "Seçiminizi yazın (1, 2 veya 3):",
+      "1"
+    );
+
+    if (choice === null) return; // İptal edildi
+
+    let partParam = 'all';
+    let filename = 'tamamlanan-vakalar.json';
+
+    if (choice.trim() === '2') {
+      partParam = '1';
+      filename = 'tamamlanan-vakalar-part-1.json';
+    } else if (choice.trim() === '3') {
+      partParam = '2';
+      filename = 'tamamlanan-vakalar-part-2.json';
+    } else if (choice.trim() !== '1') {
+      alert("Geçersiz seçim yaptınız. Lütfen 1, 2 veya 3 yazın.");
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch(`${apiUrl}/public/download-completed`);
+      const response = await fetch(`${apiUrl}/public/download-completed?part=${partParam}`);
       if (!response.ok) {
         throw new Error('İndirme başarısız veya tamamlanan vaka dosyası henüz boş.');
       }
@@ -198,7 +223,7 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'tamamlanan-vakalar.json';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

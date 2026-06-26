@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const serveStatic = require('serve-static');
+const { Pool } = require('pg');
 
 const PORT = process.env.PORT || 4000;
 const dataDir = path.join(__dirname, 'server', 'data');
@@ -14,6 +15,12 @@ const completedFile = path.join(dataDir, 'tamamlanan-vakalar.json');
 const sourceFile = path.join(__dirname, 'src', 'data', 'hasta_veri.json');
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 saate kadar valid
 const sessions = new Map(); // token => { doktor_id, son_kullanma }
+
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/radyolabel';
+const pool = new Pool({
+  connectionString,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
 
 // ─── Versiyon Takibi ─────────────────────────────────────────────────────────
 // Her case_id için artan versiyon numarası tutulur.
@@ -32,9 +39,150 @@ function ensureDataFile() {
   }
 }
 
-function initVersions() {
+async function initDatabase() {
   try {
-    const cases = readCases();
+    // 1. cases tablosunu oluştur
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cases (
+        case_id VARCHAR(50) PRIMARY KEY,
+        data JSONB NOT NULL,
+        is_completed BOOLEAN DEFAULT FALSE,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('PostgreSQL "cases" tablosu hazır.');
+
+    // 2. doctors tablosunu oluştur
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS doctors (
+        id VARCHAR(50) PRIMARY KEY,
+        ad VARCHAR(100) NOT NULL,
+        sifre_hash VARCHAR(255) NOT NULL
+      );
+    `);
+    console.log('PostgreSQL "doctors" tablosu hazır.');
+
+    // 3. doctors tablosu boş mu kontrol et, boşsa doctors.json'dan veya varsayılanlardan seed et
+    const docCountRes = await pool.query('SELECT COUNT(*) FROM doctors');
+    const docCount = parseInt(docCountRes.rows[0].count);
+    if (docCount === 0) {
+      console.log('doctors tablosu boş, veriler aktarılıyor...');
+      let doctorList = [];
+      if (fs.existsSync(doctorsFile)) {
+        const raw = fs.readFileSync(doctorsFile, 'utf8');
+        try {
+          const parsed = JSON.parse(raw);
+          doctorList = Array.isArray(parsed) ? parsed : (parsed.doktorlar || []);
+        } catch (e) { /* ignore */ }
+      }
+      
+      // Dosya yoksa veya boşsa, varsayılan doktorları ekle
+      if (doctorList.length === 0) {
+        doctorList = [
+          {
+            id: 'doktor-01',
+            ad: 'Dr. Serdar Solak',
+            sifre_hash: '$2b$10$z9zxp76chkfYWHLGkqbg.uVcB0Hg78DX1Oxi6veQ1BvO6Il9NP7hC'
+          },
+          {
+            id: 'doktor-02',
+            ad: 'Dr. Ayşe Kaya',
+            sifre_hash: '$2b$10$vScpCHWDca7tlw9w9SzTB.DAnDbRuro4fKAH6Wen2XFni6Gb9ugO6'
+          }
+        ];
+      }
+
+      for (const d of doctorList) {
+        await pool.query(
+          'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+          [d.id, d.ad, d.sifre_hash]
+        );
+      }
+      console.log('Doktorlar veritabanına başarıyla aktarıldı.');
+    }
+
+    // 4. cases tablosu boş mu kontrol et
+    const res = await pool.query('SELECT COUNT(*) FROM cases');
+    const count = parseInt(res.rows[0].count);
+    if (count === 0) {
+      console.log('Veritabanı boş, veri taşıma (seeding) başlatılıyor...');
+      let initialCases = [];
+      
+      // Önce yerel vaka-kayitlari.json ve tamamlanan-vakalar.json var mı kontrol et, varsa oradan oku ve birleştir
+      let localActive = [];
+      if (fs.existsSync(dataFile)) {
+        const raw = fs.readFileSync(dataFile, 'utf8');
+        try {
+          localActive = JSON.parse(raw);
+        } catch (e) { /* ignore */ }
+      }
+      let localCompleted = [];
+      if (fs.existsSync(completedFile)) {
+        const raw = fs.readFileSync(completedFile, 'utf8');
+        try {
+          localCompleted = JSON.parse(raw);
+        } catch (e) { /* ignore */ }
+      }
+      
+      initialCases = [...localActive, ...localCompleted];
+
+      // Yoksa veya boşsa, sourceFile'dan (hasta_veri.json) oku ve ilklendir
+      if (initialCases.length === 0 && fs.existsSync(sourceFile)) {
+        const raw = fs.readFileSync(sourceFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          initialCases = parsed.map((c, idx) => {
+            return {
+              ...c,
+              doctor_a: {
+                imaging_choice: null,
+                clinical_pattern: null,
+                confidence: null,
+                ai_action: null,
+                treatment_decision: null,
+                triage: null,
+                dataset_revision: null,
+                included_in_decision_set: false,
+                submitted_at: null,
+              },
+              doctor_b: {
+                imaging_choice: null,
+                clinical_pattern: null,
+                confidence: null,
+                ai_action: null,
+                treatment_decision: null,
+                triage: null,
+                dataset_revision: null,
+                included_in_decision_set: false,
+                submitted_at: null,
+              },
+              history: [],
+              decision_set_entries: [],
+            };
+          });
+        }
+      }
+
+      // Veritabanına aktar
+      if (initialCases.length > 0) {
+        for (const c of initialCases) {
+          const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+          await pool.query(
+            'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO NOTHING',
+            [c.case_id, JSON.stringify(c), isCompleted]
+          );
+        }
+        console.log(`Başarıyla ${initialCases.length} vaka veritabanına taşındı.`);
+      }
+    }
+  } catch (err) {
+    console.error('Veritabanı ilklendirme hatası:', err.message);
+  }
+}
+
+async function initVersions() {
+  try {
+    const cases = await readCases();
     if (Array.isArray(cases)) {
       cases.forEach((c) => {
         const version = c._version || 1;
@@ -42,7 +190,7 @@ function initVersions() {
       });
     }
   } catch (error) {
-    // İlk çalıştırmada dosya henüz olmayabilir
+    // İlk çalıştırmada tablo henüz hazır olmayabilir
   }
 }
 
@@ -53,72 +201,59 @@ function createBackup() {
       const backupFile = path.join(backupDir, `vaka-kayitlari-${stamp}.json`);
       fs.copyFileSync(dataFile, backupFile);
     }
-    if (fs.existsSync(completedFile)) {
-      const backupCompletedFile = path.join(backupDir, `tamamlanan-vakalar-${stamp}.json`);
-      fs.copyFileSync(completedFile, backupCompletedFile);
-    }
+  } catch (error) {
+    // ignore
+  }
+}
 
-    // En fazla 50 yedek tut
-    const backups = fs.readdirSync(backupDir)
-      .filter((f) => f.startsWith('vaka-kayitlari-'))
-      .sort();
-    while (backups.length > 50) {
-      const oldestActive = backups.shift();
-      fs.unlinkSync(path.join(backupDir, oldestActive));
-      
-      const oldestStamp = oldestActive.replace('vaka-kayitlari-', '').replace('.json', '');
-      const oldestCompleted = `tamamlanan-vakalar-${oldestStamp}.json`;
-      const oldestCompletedPath = path.join(backupDir, oldestCompleted);
-      if (fs.existsSync(oldestCompletedPath)) {
-        fs.unlinkSync(oldestCompletedPath);
+async function readCases() {
+  try {
+    const res = await pool.query('SELECT data FROM cases ORDER BY case_id ASC');
+    return res.rows.map((row) => row.data);
+  } catch (err) {
+    console.error('readCases veritabanı okuma hatası:', err.message);
+    return [];
+  }
+}
+
+async function writeSingleCase(c) {
+  try {
+    const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+    await pool.query(
+      'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, is_completed = EXCLUDED.is_completed, updated_at = CURRENT_TIMESTAMP',
+      [c.case_id, JSON.stringify(c), isCompleted]
+    );
+
+    // Her 100 tamamlanmış vakada bir yedek (backup) al
+    const completedRes = await pool.query('SELECT COUNT(*) FROM cases WHERE is_completed = TRUE');
+    const completedCount = parseInt(completedRes.rows[0].count);
+    if (completedCount % 100 === 0 && completedCount > 0) {
+      try {
+        const allCompletedRes = await pool.query('SELECT data FROM cases WHERE is_completed = TRUE ORDER BY case_id ASC');
+        const completedCases = allCompletedRes.rows.map(r => r.data);
+        const backupPath = path.join(backupDir, `tamamlanan-vakalar-${completedCount}.json`);
+        fs.writeFileSync(backupPath, JSON.stringify(completedCases, null, 2), 'utf8');
+        console.log(`[Backup] Tamamlanan vaka sayısı ${completedCount} olduğu için yedek alındı: ${backupPath}`);
+      } catch (err) {
+        // ignore
       }
     }
-  } catch (error) {
-    console.error('Yedek olusturulamadi:', error.message);
+  } catch (err) {
+    console.error('writeSingleCase hatası:', err.message);
   }
 }
 
-function readCases() {
-  let activeCases = [];
-  if (fs.existsSync(dataFile)) {
-    const rawActive = fs.readFileSync(dataFile, 'utf8');
-    activeCases = JSON.parse(rawActive);
-  }
-  
-  let completedCases = [];
-  if (fs.existsSync(completedFile)) {
-    const rawCompleted = fs.readFileSync(completedFile, 'utf8');
-    completedCases = JSON.parse(rawCompleted);
-  }
-
-  const merged = [...activeCases, ...completedCases];
-  merged.sort((a, b) => a.case_id.localeCompare(b.case_id));
-  return merged;
-}
-
-function writeCases(cases) {
-  const activeCases = cases.filter((c) => {
-    const isCompleted = c.doctor_a?.submitted_at && c.doctor_b?.submitted_at;
-    return !isCompleted;
-  });
-
-  const completedCases = cases.filter((c) => {
-    const isCompleted = c.doctor_a?.submitted_at && c.doctor_b?.submitted_at;
-    return isCompleted;
-  });
-
-  fs.writeFileSync(dataFile, JSON.stringify(activeCases, null, 2), 'utf8');
-  fs.writeFileSync(completedFile, JSON.stringify(completedCases, null, 2), 'utf8');
-
-  // Her 100 tamamlanmış vakada bir yedek (backup) al
-  if (completedCases.length % 100 === 0 && completedCases.length > 0) {
-    try {
-      const backupPath = path.join(backupDir, `tamamlanan-vakalar-${completedCases.length}.json`);
-      fs.copyFileSync(completedFile, backupPath);
-      console.log(`[Backup] Tamamlanan vaka sayısı ${completedCases.length} olduğu için yedek alındı: ${backupPath}`);
-    } catch (err) {
-      console.error('[Backup] Tamamlanan vakalar yedeği oluşturulamadı:', err.message);
+async function writeCases(cases) {
+  try {
+    for (const c of cases) {
+      const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+      await pool.query(
+        'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, is_completed = EXCLUDED.is_completed, updated_at = CURRENT_TIMESTAMP',
+        [c.case_id, JSON.stringify(c), isCompleted]
+      );
     }
+  } catch (err) {
+    console.error('writeCases hatası:', err.message);
   }
 }
 
@@ -203,17 +338,27 @@ function requireAuth(req, res) {
   return session;
 }
 
-function loadDoctors() {
-  if (!fs.existsSync(doctorsFile)) {
+async function loadDoctors() {
+  try {
+    const res = await pool.query('SELECT id, ad, sifre_hash FROM doctors ORDER BY id ASC');
+    return res.rows;
+  } catch (err) {
+    console.error('loadDoctors hatası:', err.message);
     return [];
   }
-  const raw = fs.readFileSync(doctorsFile, 'utf8');
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : (parsed.doktorlar || []);
 }
 
-function saveDoctors(doctors) {
-  fs.writeFileSync(doctorsFile, JSON.stringify(doctors, null, 2), 'utf8');
+async function saveDoctors(doctors) {
+  try {
+    for (const d of doctors) {
+      await pool.query(
+        'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET ad = EXCLUDED.ad, sifre_hash = EXCLUDED.sifre_hash',
+        [d.id, d.ad, d.sifre_hash]
+      );
+    }
+  } catch (err) {
+    console.error('saveDoctors hatası:', err.message);
+  }
 }
 
 // ─── URL Parse ───────────────────────────────────────────────────────────────
@@ -226,9 +371,6 @@ function parseCaseIdFromUrl(url) {
 
 // ─── Başlatma ────────────────────────────────────────────────────────────────
 
-ensureDataFile();
-initVersions();
-
 setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
 
 const server = http.createServer(async (req, res) => {
@@ -240,7 +382,7 @@ const server = http.createServer(async (req, res) => {
   // GET /api/doctors — Doktor listesini döndür (şifresiz)
   if (req.url === '/api/doctors' && req.method === 'GET') {
     try {
-      const doctors = loadDoctors();
+      const doctors = await loadDoctors();
       const publicDoctors = doctors.map((d) => ({
         id: d.id,
         ad: d.ad,
@@ -268,7 +410,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const doctors = loadDoctors();
+      const doctors = await loadDoctors();
       const doktor = doctors.find((d) => d.id === doktor_id);
 
       if (!doktor) {
@@ -308,7 +450,7 @@ const server = http.createServer(async (req, res) => {
   // GET /api/public/cases — Genel vaka listesi (şifresiz takip ekranı için)
   if (req.url === '/api/public/cases' && req.method === 'GET') {
     try {
-      const cases = readCases();
+      const cases = await readCases();
       const withVersions = cases.map((c) => ({
         ...c,
         _version: caseVersions.get(c.case_id) || 1,
@@ -321,21 +463,35 @@ const server = http.createServer(async (req, res) => {
   }
 
   // GET /api/public/download-completed — Tamamlanan vakaları JSON olarak indirme
-  if (req.url === '/api/public/download-completed' && req.method === 'GET') {
+  if (req.url.startsWith('/api/public/download-completed') && req.method === 'GET') {
     try {
-      if (fs.existsSync(completedFile)) {
-        const raw = fs.readFileSync(completedFile, 'utf8');
-        res.writeHead(200, {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': 'attachment; filename=tamamlanan-vakalar.json',
-        });
-        res.end(raw);
-      } else {
-        sendJson(res, 404, { error: 'Tamamlanan vakalar dosyası bulunamadı.' });
+      const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const part = parsedUrl.searchParams.get('part') || 'all';
+
+      let query = 'SELECT data FROM cases WHERE is_completed = TRUE';
+      let filename = 'tamamlanan-vakalar.json';
+
+      if (part === '1') {
+        query += " AND case_id <= 'CASE-101000'";
+        filename = 'tamamlanan-vakalar-part-1.json';
+      } else if (part === '2') {
+        query += " AND case_id > 'CASE-101000'";
+        filename = 'tamamlanan-vakalar-part-2.json';
       }
+
+      query += ' ORDER BY case_id ASC';
+
+      const dbRes = await pool.query(query);
+      const completedCases = dbRes.rows.map((row) => row.data);
+
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename=${filename}`,
+      });
+      res.end(JSON.stringify(completedCases, null, 2));
     } catch (error) {
       sendJson(res, 500, { error: 'Dosya indirilemedi: ' + error.message });
     }
@@ -348,10 +504,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { case_ids, reset_all } = JSON.parse(body);
 
-      let cases = readCases();
+      const cases = await readCases();
 
       if (reset_all) {
-        cases = cases.map((c) => ({
+        const resetCases = cases.map((c) => ({
           ...c,
           doctor_a: {
             imaging_choice: null,
@@ -379,16 +535,20 @@ const server = http.createServer(async (req, res) => {
           _version: (caseVersions.get(c.case_id) || 1) + 1,
         }));
 
-        cases.forEach((c) => {
+        resetCases.forEach((c) => {
           caseVersions.set(c.case_id, c._version);
         });
+
+        createBackup();
+        await writeCases(resetCases);
       } else if (Array.isArray(case_ids)) {
         const resetSet = new Set(case_ids);
-        cases = cases.map((c) => {
+        createBackup();
+        for (const c of cases) {
           if (resetSet.has(c.case_id)) {
             const nextVer = (caseVersions.get(c.case_id) || 1) + 1;
             caseVersions.set(c.case_id, nextVer);
-            return {
+            const resetCase = {
               ...c,
               doctor_a: {
                 imaging_choice: null,
@@ -415,13 +575,11 @@ const server = http.createServer(async (req, res) => {
               history: [],
               _version: nextVer,
             };
+            await writeSingleCase(resetCase);
           }
-          return c;
-        });
+        }
       }
 
-      createBackup();
-      writeCases(cases);
       sendJson(res, 200, { ok: true });
     } catch (error) {
       sendJson(res, 500, { error: 'Sifirlama basarisiz: ' + error.message });
@@ -448,7 +606,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const doctors = loadDoctors();
+      const doctors = await loadDoctors();
       const doktorIndex = doctors.findIndex((d) => d.id === session.doktor_id);
 
       if (doktorIndex === -1) {
@@ -465,7 +623,7 @@ const server = http.createServer(async (req, res) => {
 
       const newHash = await bcrypt.hash(sifre_yeni, 10);
       doctors[doktorIndex].sifre_hash = newHash;
-      saveDoctors(doctors);
+      await saveDoctors(doctors);
 
       sendJson(res, 200, { ok: true, mesaj: 'Sifre basariyla degistirildi.' });
     } catch (error) {
@@ -479,7 +637,7 @@ const server = http.createServer(async (req, res) => {
     const session = requireAuth(req, res);
     if (!session) return;
     try {
-      const cases = readCases();
+      const cases = await readCases();
       const withVersions = cases.map((c) => ({
         ...c,
         _version: caseVersions.get(c.case_id) || 1,
@@ -511,7 +669,7 @@ const server = http.createServer(async (req, res) => {
         caseVersions.set(c.case_id, current + 1);
         c._version = current + 1;
       });
-      writeCases(cases);
+      await writeCases(cases);
       sendJson(res, 200, { ok: true, saved_at: new Date().toISOString() });
     } catch (error) {
       sendJson(res, 500, { error: 'Kayit dosyasi yazilamadi.' });
@@ -555,7 +713,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Dosyadan oku, hedef vakayı bul
-      const cases = readCases();
+      const cases = await readCases();
       const caseIndex = cases.findIndex((c) => c.case_id === patchCaseId);
 
       if (caseIndex === -1) {
@@ -606,7 +764,7 @@ const server = http.createServer(async (req, res) => {
 
       // Yedek oluştur ve kaydet
       createBackup();
-      writeCases(cases);
+      await writeSingleCase(targetCase);
 
       sendJson(res, 200, {
         ok: true,
@@ -643,9 +801,21 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { error: 'Bulunamadi.' });
 });
 
-server.listen(PORT, () => {
-  console.log(`Radyoloji veri servisi http://localhost:${PORT} adresinde calisiyor.`);
-  console.log(`Kayit dosyasi (Aktif): ${dataFile}`);
-  console.log(`Tamamlanan vakalar dosyası: ${completedFile}`);
-  console.log(`Yedek klasoru: ${backupDir}`);
-});
+async function startServer() {
+  try {
+    ensureDataFile();
+    await initDatabase();
+    await initVersions();
+    
+    server.listen(PORT, () => {
+      console.log(`Radyoloji veri servisi http://localhost:${PORT} adresinde calisiyor.`);
+      console.log(`Kayit dosyasi (Aktif): ${dataFile}`);
+      console.log(`Tamamlanan vakalar dosyası: ${completedFile}`);
+      console.log(`Yedek klasoru: ${backupDir}`);
+    });
+  } catch (err) {
+    console.error('Sunucu baslatilamadi:', err.message);
+  }
+}
+
+startServer();
