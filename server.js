@@ -41,16 +41,22 @@ function ensureDataFile() {
 
 async function initDatabase() {
   try {
-    // 1. cases tablosunu oluştur
+    // 1. cases ve finishcases tablolarını oluştur
     await pool.query(`
       CREATE TABLE IF NOT EXISTS cases (
         case_id VARCHAR(50) PRIMARY KEY,
         data JSONB NOT NULL,
-        is_completed BOOLEAN DEFAULT FALSE,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('PostgreSQL "cases" tablosu hazır.');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS finishcases (
+        case_id VARCHAR(50) PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('PostgreSQL "cases" ve "finishcases" tabloları hazır.');
 
     // 2. doctors tablosunu oluştur
     await pool.query(`
@@ -101,9 +107,10 @@ async function initDatabase() {
       console.log('Doktorlar veritabanına başarıyla aktarıldı.');
     }
 
-    // 4. cases tablosu boş mu kontrol et
-    const res = await pool.query('SELECT COUNT(*) FROM cases');
-    const count = parseInt(res.rows[0].count);
+    // 4. Tablolar boş mu kontrol et
+    const activeCountRes = await pool.query('SELECT COUNT(*) FROM cases');
+    const finishCountRes = await pool.query('SELECT COUNT(*) FROM finishcases');
+    const count = parseInt(activeCountRes.rows[0].count) + parseInt(finishCountRes.rows[0].count);
     if (count === 0) {
       console.log('Veritabanı boş, veri taşıma (seeding) başlatılıyor...');
       let initialCases = [];
@@ -167,10 +174,17 @@ async function initDatabase() {
       if (initialCases.length > 0) {
         for (const c of initialCases) {
           const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
-          await pool.query(
-            'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO NOTHING',
-            [c.case_id, JSON.stringify(c), isCompleted]
-          );
+          if (isCompleted) {
+            await pool.query(
+              'INSERT INTO finishcases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO NOTHING',
+              [c.case_id, JSON.stringify(c)]
+            );
+          } else {
+            await pool.query(
+              'INSERT INTO cases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO NOTHING',
+              [c.case_id, JSON.stringify(c)]
+            );
+          }
         }
         console.log(`Başarıyla ${initialCases.length} vaka veritabanına taşındı.`);
       }
@@ -208,8 +222,11 @@ function createBackup() {
 
 async function readCases() {
   try {
-    const res = await pool.query('SELECT data FROM cases ORDER BY case_id ASC');
-    return res.rows.map((row) => row.data);
+    const activeRes = await pool.query('SELECT data FROM cases');
+    const finishRes = await pool.query('SELECT data FROM finishcases');
+    const allCases = [...activeRes.rows.map((row) => row.data), ...finishRes.rows.map((row) => row.data)];
+    allCases.sort((a, b) => a.case_id.localeCompare(b.case_id));
+    return allCases;
   } catch (err) {
     console.error('readCases veritabanı okuma hatası:', err.message);
     return [];
@@ -219,17 +236,26 @@ async function readCases() {
 async function writeSingleCase(c) {
   try {
     const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
-    await pool.query(
-      'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, is_completed = EXCLUDED.is_completed, updated_at = CURRENT_TIMESTAMP',
-      [c.case_id, JSON.stringify(c), isCompleted]
-    );
+    if (isCompleted) {
+      await pool.query(
+        'INSERT INTO finishcases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP',
+        [c.case_id, JSON.stringify(c)]
+      );
+      await pool.query('DELETE FROM cases WHERE case_id = $1', [c.case_id]);
+    } else {
+      await pool.query(
+        'INSERT INTO cases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP',
+        [c.case_id, JSON.stringify(c)]
+      );
+      await pool.query('DELETE FROM finishcases WHERE case_id = $1', [c.case_id]);
+    }
 
     // Her 100 tamamlanmış vakada bir yedek (backup) al
-    const completedRes = await pool.query('SELECT COUNT(*) FROM cases WHERE is_completed = TRUE');
+    const completedRes = await pool.query('SELECT COUNT(*) FROM finishcases');
     const completedCount = parseInt(completedRes.rows[0].count);
     if (completedCount % 100 === 0 && completedCount > 0) {
       try {
-        const allCompletedRes = await pool.query('SELECT data FROM cases WHERE is_completed = TRUE ORDER BY case_id ASC');
+        const allCompletedRes = await pool.query('SELECT data FROM finishcases ORDER BY case_id ASC');
         const completedCases = allCompletedRes.rows.map(r => r.data);
         const backupPath = path.join(backupDir, `tamamlanan-vakalar-${completedCount}.json`);
         fs.writeFileSync(backupPath, JSON.stringify(completedCases, null, 2), 'utf8');
@@ -247,10 +273,19 @@ async function writeCases(cases) {
   try {
     for (const c of cases) {
       const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
-      await pool.query(
-        'INSERT INTO cases (case_id, data, is_completed) VALUES ($1, $2, $3) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, is_completed = EXCLUDED.is_completed, updated_at = CURRENT_TIMESTAMP',
-        [c.case_id, JSON.stringify(c), isCompleted]
-      );
+      if (isCompleted) {
+        await pool.query(
+          'INSERT INTO finishcases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP',
+          [c.case_id, JSON.stringify(c)]
+        );
+        await pool.query('DELETE FROM cases WHERE case_id = $1', [c.case_id]);
+      } else {
+        await pool.query(
+          'INSERT INTO cases (case_id, data) VALUES ($1, $2) ON CONFLICT (case_id) DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP',
+          [c.case_id, JSON.stringify(c)]
+        );
+        await pool.query('DELETE FROM finishcases WHERE case_id = $1', [c.case_id]);
+      }
     }
   } catch (err) {
     console.error('writeCases hatası:', err.message);
@@ -468,14 +503,14 @@ const server = http.createServer(async (req, res) => {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const part = parsedUrl.searchParams.get('part') || 'all';
 
-      let query = 'SELECT data FROM cases WHERE is_completed = TRUE';
+      let query = 'SELECT data FROM finishcases';
       let filename = 'tamamlanan-vakalar.json';
 
       if (part === '1') {
-        query += " AND case_id <= 'CASE-101000'";
+        query += " WHERE case_id <= 'CASE-101000'";
         filename = 'tamamlanan-vakalar-part-1.json';
       } else if (part === '2') {
-        query += " AND case_id > 'CASE-101000'";
+        query += " WHERE case_id > 'CASE-101000'";
         filename = 'tamamlanan-vakalar-part-2.json';
       }
 
