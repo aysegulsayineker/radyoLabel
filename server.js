@@ -320,6 +320,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/public/download-completed — Tamamlanan vakaları JSON olarak indirme
+  if (req.url === '/api/public/download-completed' && req.method === 'GET') {
+    try {
+      if (fs.existsSync(completedFile)) {
+        const raw = fs.readFileSync(completedFile, 'utf8');
+        res.writeHead(200, {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Disposition': 'attachment; filename=tamamlanan-vakalar.json',
+        });
+        res.end(raw);
+      } else {
+        sendJson(res, 404, { error: 'Tamamlanan vakalar dosyası bulunamadı.' });
+      }
+    } catch (error) {
+      sendJson(res, 500, { error: 'Dosya indirilemedi: ' + error.message });
+    }
+    return;
+  }
+
   // POST /api/public/reset-cases — Vakaları sıfırlama (şifresiz takip ekranı için)
   if (req.url === '/api/public/reset-cases' && req.method === 'POST') {
     try {

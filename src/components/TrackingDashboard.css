@@ -83,7 +83,7 @@
   gap: 12px;
 }
 
-.takip-refresh-btn, .takip-reset-all-btn {
+.takip-refresh-btn, .takip-reset-all-btn, .takip-download-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -119,6 +119,15 @@
 
 .takip-reset-all-btn:hover {
   background: #dc2626;
+}
+
+.takip-download-btn {
+  background: #10b981;
+  color: #fff;
+}
+
+.takip-download-btn:hover {
+  background: #059669;
 }
 
 .takip-error-banner {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { RefreshCw, Search, Trash2, ArrowLeft, CheckSquare, Square, Info } from 'lucide-react';
+import { RefreshCw, Search, Trash2, ArrowLeft, CheckSquare, Square, Info, Download } from 'lucide-react';
 import './TrackingDashboard.css';
 
 export default function TrackingDashboard({ onBack, apiUrl }) {
@@ -187,6 +187,29 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
     }
   };
 
+  const handleDownloadCompleted = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${apiUrl}/public/download-completed`);
+      if (!response.ok) {
+        throw new Error('İndirme başarısız veya tamamlanan vaka dosyası henüz boş.');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tamamlanan-vakalar.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const allSelectedOnPage = pagedCases.length > 0 && pagedCases.every((c) => selectedIds.has(c.case_id));
 
   return (
@@ -206,6 +229,10 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
           <button type="button" className="takip-refresh-btn" onClick={loadData} disabled={loading}>
             <RefreshCw size={15} className={loading ? 'spin' : ''} />
             <span>Yenile</span>
+          </button>
+          <button type="button" className="takip-download-btn" onClick={handleDownloadCompleted} disabled={loading}>
+            <Download size={15} />
+            <span>Tamamlananları İndir (JSON)</span>
           </button>
           <button type="button" className="takip-reset-all-btn" onClick={handleResetAll} disabled={loading}>
             <Trash2 size={15} />
