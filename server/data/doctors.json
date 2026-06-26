@@ -1,0 +1,14 @@
+{
+  "doktorlar": [
+    {
+      "id": "doktor-01",
+      "ad": "Dr. Serdar Solak",
+      "sifre_hash": "$2b$10$z9zxp76chkfYWHLGkqbg.uVcB0Hg78DX1Oxi6veQ1BvO6Il9NP7hC"
+    },
+    {
+      "id": "doktor-02",
+      "ad": "Dr. Ayşe Kaya",
+      "sifre_hash": "$2b$10$vScpCHWDca7tlw9w9SzTB.DAnDbRuro4fKAH6Wen2XFni6Gb9ugO6"
+    }
+  ]
+}

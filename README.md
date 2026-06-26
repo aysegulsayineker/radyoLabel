@@ -1,4 +1,48 @@
-# Getting Started with Create React App
+# Radyoloji Konsensus Sistemi
+
+## Uygulamayı Başlatma
+
+Windows'ta doktorların komut yazmasına gerek yoktur.
+
+Proje klasöründeki `baslat.bat` dosyasına çift tıklayın.
+
+Bu dosya otomatik olarak:
+
+- JSON veri servisini başlatır.
+- React uygulamasını başlatır.
+- Tarayıcıda `http://localhost:3000` adresini açar.
+
+Aynı ağdaki başka bilgisayarlardan giriş için uygulamanın çalıştığı ana bilgisayarın IP adresi kullanılır:
+
+```text
+http://ANA_BILGISAYAR_IP_ADRESI:3000
+```
+
+Örnek:
+
+```text
+http://192.168.1.25:3000
+```
+
+Hasta veri seti `src/data/hasta_veri.json` dosyasında durur.
+
+Doktor kararları ve sonuçlar `server/data/vaka-kayitlari.json` dosyasına otomatik kaydedilir. Aynı bilgiler yedek olarak tarayıcı localStorage alanında da tutulur.
+
+## Geliştirici Komutları
+
+Veri servisini elle başlatmak için:
+
+```bash
+npm run api
+```
+
+Uygulamayı elle başlatmak için:
+
+```bash
+npm start
+```
+
+## Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

@@ -1,0 +1,505 @@
+/* ─── Takip Dashboard / Tracking CSS ───────────────────────────────────────── */
+.takip-dashboard {
+  background: #0f172a;
+  min-height: 100vh;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  font-family: inherit;
+}
+
+[data-theme='light'] .takip-dashboard {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.takip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 18px;
+}
+
+[data-theme='light'] .takip-header {
+  border-bottom-color: #cbd5e1;
+}
+
+.takip-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.takip-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+[data-theme='light'] .takip-back-btn {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.takip-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='light'] .takip-back-btn:hover {
+  background: #f8fafc;
+}
+
+.takip-header-left h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.takip-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 2px 0 0 0;
+}
+
+[data-theme='light'] .takip-subtitle {
+  color: #475569;
+}
+
+.takip-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.takip-refresh-btn, .takip-reset-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 0;
+}
+
+.takip-refresh-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+[data-theme='light'] .takip-refresh-btn {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.takip-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.takip-reset-all-btn {
+  background: #ef4444;
+  color: #fff;
+}
+
+.takip-reset-all-btn:hover {
+  background: #dc2626;
+}
+
+.takip-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #fca5a5;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.takip-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+[data-theme='light'] .takip-filters {
+  background: #fff;
+  border-color: #e2e8f0;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-wrap svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme='light'] .search-wrap svg {
+  color: #64748b;
+}
+
+.search-wrap input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 14px 10px 42px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+[data-theme='light'] .search-wrap input {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.search-wrap input:focus {
+  border-color: #c9a04a;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-group {
+  display: flex;
+  gap: 16px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+[data-theme='light'] .filter-group label {
+  color: #64748b;
+}
+
+.filter-group select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+[data-theme='light'] .filter-group select {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.filter-group select option {
+  background: #1e293b;
+  color: #fff;
+}
+
+[data-theme='light'] .filter-group select option {
+  background: #fff;
+  color: #334155;
+}
+
+.takip-batch-actions {
+  background: rgba(201, 160, 74, 0.12);
+  border: 1px solid rgba(201, 160, 74, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #c9a04a;
+  font-size: 14px;
+}
+
+.batch-reset-btn {
+  background: #c9a04a;
+  color: #0f2744;
+  border: 0;
+  font-weight: 800;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: auto;
+  text-transform: uppercase;
+}
+
+.takip-table-container {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  flex: 1;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+[data-theme='light'] .takip-table-container {
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.takip-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.takip-table th, .takip-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='light'] .takip-table th, [data-theme='light'] .takip-table td {
+  border-bottom-color: #f1f5f9;
+}
+
+.takip-table th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.05em;
+}
+
+[data-theme='light'] .takip-table th {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.takip-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme='light'] .takip-table tr:hover {
+  background: #f8fafc;
+}
+
+.takip-table tr.selected {
+  background: rgba(201, 160, 74, 0.04);
+}
+
+.checkbox-btn {
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+[data-theme='light'] .checkbox-btn {
+  color: #94a3b8;
+}
+
+.takip-table tr.selected .checkbox-btn {
+  color: #c9a04a;
+}
+
+.complaint-cell {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='light'] .complaint-cell {
+  color: #1e293b;
+}
+
+.stage-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.stage-badge.stage-islerim {
+  background: rgba(239, 149, 44, 0.12);
+  color: #f79a2c;
+  border: 1px solid rgba(239, 149, 44, 0.25);
+}
+
+.stage-badge.stage-diger_havuz {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.stage-badge.stage-tamamlanan {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.flow-holder-text {
+  font-weight: 600;
+}
+
+.decision-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme='light'] .decision-text {
+  color: #475569;
+}
+
+.time-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='light'] .time-text {
+  color: #64748b;
+}
+
+.row-reset-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.row-reset-btn:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.table-loading, .table-empty {
+  text-align: center;
+  padding: 48px !important;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15px;
+}
+
+[data-theme='light'] .table-loading, [data-theme='light'] .table-empty {
+  color: #64748b;
+}
+
+.table-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(201, 160, 74, 0.2);
+  border-top-color: #c9a04a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.takip-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.takip-pager-info {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme='light'] .takip-pager-info {
+  color: #475569;
+}
+
+.takip-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.takip-pager-controls button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+[data-theme='light'] .takip-pager-controls button {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.takip-pager-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='light'] .takip-pager-controls button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.takip-pager-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.takip-pager-controls span {
+  font-size: 13.5px;
+  font-weight: 600;
+}

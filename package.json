@@ -1,5 +1,5 @@
 {
-  "name": "hastane-sistemi",
+  "name": "radyolabel",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -7,12 +7,16 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
+    "bcrypt": "^6.0.0",
+    "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-scripts": "5.0.1",
+    "serve-static": "^2.2.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "api": "node server.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
