@@ -1,114 +1,52 @@
-# Radyoloji Konsensus Sistemi
+# radyoLabel - Radyoloji Konsensus Tabanlı Yapay Zeka Veri Seti Oluşturma Platformu
 
-## Uygulamayı Başlatma
+Bu proje, iki uzman radyoloğun (Dr. Serdar Solak ve Dr. Ayşe Kaya) vaka kararlarını konsensus süzgecinden geçirerek, yapay zeka modellerinin eğitimi için yüksek doğruluğa sahip etiketlenmiş altın standart (gold standard) veri setleri oluşturulmasını sağlayan tam kapsamlı bir web uygulamasıdır.
 
-Windows'ta doktorların komut yazmasına gerek yoktur.
+## Özellikler
 
-Proje klasöründeki `baslat.bat` dosyasına çift tıklayın.
+*   **2 Aşamalı Konsensus Akışı**: Bir vaka ancak iki uzman hekim tarafından onaylandığında akışı tamamlanmış kabul edilir. Kararlarda tutarsızlık olması halinde otomatik olarak süreç başa döner.
+*   **Akış Geçmişi & Tarihçe**: Her vaka için kimin, hangi tarihte, ne karar verdiğini gösteren akış günlüğü.
+*   **Takip ve Yönetim Paneli (`/takip`)**: 2000 vakanın tüm aşamalarını, akış sahiplerini ve kararlarını şifresiz, tek bir ekrandan izleme, filtreleme ve sıfırlama (tekli/toplu) imkanı.
+*   **Milestone Backups**: Akışı tamamlanan her 100 vakada bir, `server/data/backups/` altında otomatik dosya yedeği oluşturma.
+*   **Dynamic API Setup**: Localhost'ta port 4000 üzerinden, prodüksiyonda ise dinamik port ve HTTPS protokolüne uyumlu çalışma.
 
-Bu dosya otomatik olarak:
+## Projeyi Yerel Ortamda Çalıştırma
 
-- JSON veri servisini başlatır.
-- React uygulamasını başlatır.
-- Tarayıcıda `http://localhost:3000` adresini açar.
+### 1. `baslat.bat` ile Başlatma (Windows)
+Windows ortamında tek tıklamayla çalıştırmak için proje ana dizinindeki `baslat.bat` dosyasına çift tıklamanız yeterlidir. Bu dosya hem veri servisini hem de React arayüzünü başlatacaktır.
 
-Aynı ağdaki başka bilgisayarlardan giriş için uygulamanın çalıştığı ana bilgisayarın IP adresi kullanılır:
+### 2. Manuel Başlatma (Terminal)
+Geliştirme aşamasında her iki servisi manuel başlatmak için:
 
-```text
-http://ANA_BILGISAYAR_IP_ADRESI:3000
-```
-
-Örnek:
-
-```text
-http://192.168.1.25:3000
-```
-
-Hasta veri seti `src/data/hasta_veri.json` dosyasında durur.
-
-Doktor kararları ve sonuçlar `server/data/vaka-kayitlari.json` dosyasına otomatik kaydedilir. Aynı bilgiler yedek olarak tarayıcı localStorage alanında da tutulur.
-
-## Geliştirici Komutları
-
-Veri servisini elle başlatmak için:
-
+**Veri Servisi (Backend):**
 ```bash
 npm run api
 ```
 
-Uygulamayı elle başlatmak için:
-
+**React Uygulaması (Frontend):**
 ```bash
 npm start
 ```
+Uygulama yerelde `http://localhost:3000` adresinden açılacaktır.
 
-## Create React App
+## Prodüksiyon Derlemesi (Build)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Uygulamanın statik dosyalarını derlemek için:
+```bash
+npm run build
+```
+Bu komut, tüm React kodlarını `build/` klasörü altına derler. `server.js` backend sunucusu bu derlenmiş dosyaları otomatik olarak statik olarak sunar.
 
-## Available Scripts
+## Prodüksiyon Canlı Yayını (Deployment)
 
-In the project directory, you can run:
+Bu uygulama yerel JSON dosyalarını veritabanı gibi kullandığı için, serverless platformlar (Vercel vb.) yerine kalıcı bir sunucu ortamı sunan **Render** veya **Railway** gibi bulut servislerinde tek bir Web Servisi olarak yayınlanması önerilir.
 
-### `npm start`
+### Render Üzerinde Canlıya Alma Adımları
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1.  GitHub deponuzu (`radyoLabel`) Render hesabınıza bağlayın.
+2.  Yeni bir **Web Service** oluşturun.
+3.  Aşağıdaki ayarları girin:
+    *   **Runtime**: `Node`
+    *   **Build Command**: `npm install && npm run build`
+    *   **Start Command**: `node server.js`
+4.  Render size otomatik olarak `https://radyolabel.onrender.com` gibi ücretsiz ve canlı bir HTTPS linki verecektir.
