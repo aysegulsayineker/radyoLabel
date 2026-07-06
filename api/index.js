@@ -76,14 +76,14 @@ async function initDatabase() {
         {
           id: 'doktor-02',
           ad: 'Doktor 2',
-          sifre_hash: '$2b$10$vScpCHWDca7tlw9w9SzTB.DAnDbRuro4fKAH6Wen2XFni6Gb9ugO6'
+          sifre_hash: '$2b$10$IVPP9uK7MTu1mpcaoRbkvuXasPKpmXDncmBuRJMtgjABmeljtp4Em'
         }
       ];
     }
 
     for (const d of doctorList) {
       await pool.query(
-        'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET ad = EXCLUDED.ad',
+        'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET ad = EXCLUDED.ad, sifre_hash = EXCLUDED.sifre_hash',
         [d.id, d.ad, d.sifre_hash]
       );
     }
