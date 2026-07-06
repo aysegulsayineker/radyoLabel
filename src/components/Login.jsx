@@ -23,8 +23,8 @@ export default function Login({ onLogin, apiUrl }) {
       .catch((err) => {
         console.warn('Doktor listesi sunucudan yuklenemedi, varsayilanlar kullaniliyor:', err);
         setDoktorlar([
-          { id: 'doktor-01', ad: 'Dr. Serdar Solak' },
-          { id: 'doktor-02', ad: 'Dr. Ayşe Kaya' },
+          { id: 'doktor-01', ad: 'Serdar Sipahioğlu' },
+          { id: 'doktor-02', ad: 'Doktor 2' },
         ]);
       });
   }, [apiUrl]);

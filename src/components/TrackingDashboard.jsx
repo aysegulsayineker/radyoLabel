@@ -43,7 +43,7 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
     return cases.map((vaka) => {
       const caseIndex = parseInt(vaka.case_id.replace('CASE-', '')) - 100001;
       const initialAssignee = caseIndex < 1000 ? 'A' : 'B';
-      const initialAssigneeName = initialAssignee === 'A' ? 'Dr. Serdar Solak' : 'Dr. Ayşe Kaya';
+      const initialAssigneeName = initialAssignee === 'A' ? 'Serdar Sipahioğlu' : 'Doktor 2';
 
       const docA = vaka.doctor_a || {};
       const docB = vaka.doctor_b || {};
@@ -68,13 +68,13 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
       } else if (aSubmitted && !bSubmitted) {
         stage = 'Uzman Onayında (B\'de)';
         stageKey = 'diger_havuz';
-        flowHolder = 'Dr. Ayşe Kaya';
+        flowHolder = 'Doktor 2';
         flowKey = 'B';
         lastTime = new Date(docA.submitted_at).toLocaleString('tr-TR');
       } else if (!aSubmitted && bSubmitted) {
         stage = 'Uzman Onayında (A\'da)';
         stageKey = 'diger_havuz';
-        flowHolder = 'Dr. Serdar Solak';
+        flowHolder = 'Serdar Sipahioğlu';
         flowKey = 'A';
         lastTime = new Date(docB.submitted_at).toLocaleString('tr-TR');
       } else {
@@ -299,8 +299,8 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
             Akış Sahibi
             <select value={filterFlow} onChange={(e) => setFilterFlow(e.target.value)}>
               <option value="all">Tümü</option>
-              <option value="A">Dr. Serdar Solak'ta</option>
-              <option value="B">Dr. Ayşe Kaya'da</option>
+              <option value="A">Serdar Sipahioğlu'nda</option>
+              <option value="B">Doktor 2'de</option>
               <option value="completed">Akış Tamamlandı</option>
             </select>
           </label>

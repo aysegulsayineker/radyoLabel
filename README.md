@@ -1,6 +1,6 @@
 # radyoLabel - Radyoloji Konsensus Tabanlı Yapay Zeka Veri Seti Oluşturma Platformu
 
-Bu proje, iki uzman radyoloğun (Dr. Serdar Solak ve Dr. Ayşe Kaya) vaka kararlarını konsensus süzgecinden geçirerek, yapay zeka modellerinin eğitimi için yüksek doğruluğa sahip etiketlenmiş altın standart (gold standard) veri setleri oluşturulmasını sağlayan tam kapsamlı bir web uygulamasıdır.
+Bu proje, iki uzman radyoloğun (Serdar Sipahioğlu ve Doktor 2) vaka kararlarını konsensus süzgecinden geçirerek, yapay zeka modellerinin eğitimi için yüksek doğruluğa sahip etiketlenmiş altın standart (gold standard) veri setleri oluşturulmasını sağlayan tam kapsamlı bir web uygulamasıdır.
 
 ## Özellikler
 

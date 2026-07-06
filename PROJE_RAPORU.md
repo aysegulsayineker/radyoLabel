@@ -64,8 +64,8 @@ sequenceDiagram
 
 Uygulamaya giriş yapan kullanıcılar `server/data/doctors.json` dosyasındaki tanımlamalara göre rollerine ayrıştırılır:
 
-1.  **Dr. Serdar Solak (ID: `doktor-01`):** Sistem tarafından **Doktor A (Slot A)** olarak atanır.
-2.  **Dr. Ayşe Kaya (ID: `doktor-02`):** Sistem tarafından **Doktor B (Slot B)** olarak atanır.
+1.  **Serdar Sipahioğlu (ID: `doktor-01`):** Sistem tarafından **Doktor A (Slot A)** olarak atanır.
+2.  **Doktor 2 (ID: `doktor-02`):** Sistem tarafından **Doktor B (Slot B)** olarak atanır.
 
 ### Konsensus Nasıl Sağlanır?
 *   Bir vakanın statüsü şu 3 durumdan birindedir:

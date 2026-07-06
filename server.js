@@ -68,44 +68,39 @@ async function initDatabase() {
     `);
     console.log('PostgreSQL "doctors" tablosu hazır.');
 
-    // 3. doctors tablosu boş mu kontrol et, boşsa doctors.json'dan veya varsayılanlardan seed et
-    const docCountRes = await pool.query('SELECT COUNT(*) FROM doctors');
-    const docCount = parseInt(docCountRes.rows[0].count);
-    if (docCount === 0) {
-      console.log('doctors tablosu boş, veriler aktarılıyor...');
-      let doctorList = [];
-      if (fs.existsSync(doctorsFile)) {
-        const raw = fs.readFileSync(doctorsFile, 'utf8');
-        try {
-          const parsed = JSON.parse(raw);
-          doctorList = Array.isArray(parsed) ? parsed : (parsed.doktorlar || []);
-        } catch (e) { /* ignore */ }
-      }
-      
-      // Dosya yoksa veya boşsa, varsayılan doktorları ekle
-      if (doctorList.length === 0) {
-        doctorList = [
-          {
-            id: 'doktor-01',
-            ad: 'Dr. Serdar Solak',
-            sifre_hash: '$2b$10$z9zxp76chkfYWHLGkqbg.uVcB0Hg78DX1Oxi6veQ1BvO6Il9NP7hC'
-          },
-          {
-            id: 'doktor-02',
-            ad: 'Dr. Ayşe Kaya',
-            sifre_hash: '$2b$10$vScpCHWDca7tlw9w9SzTB.DAnDbRuro4fKAH6Wen2XFni6Gb9ugO6'
-          }
-        ];
-      }
-
-      for (const d of doctorList) {
-        await pool.query(
-          'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
-          [d.id, d.ad, d.sifre_hash]
-        );
-      }
-      console.log('Doktorlar veritabanına başarıyla aktarıldı.');
+    // 3. doctors tablosunu seed et veya isimleri güncelle
+    let doctorList = [];
+    if (fs.existsSync(doctorsFile)) {
+      const raw = fs.readFileSync(doctorsFile, 'utf8');
+      try {
+        const parsed = JSON.parse(raw);
+        doctorList = Array.isArray(parsed) ? parsed : (parsed.doktorlar || []);
+      } catch (e) { /* ignore */ }
     }
+    
+    // Dosya yoksa veya boşsa, varsayılan doktorları ekle
+    if (doctorList.length === 0) {
+      doctorList = [
+        {
+          id: 'doktor-01',
+          ad: 'Serdar Sipahioğlu',
+          sifre_hash: '$2b$10$z9zxp76chkfYWHLGkqbg.uVcB0Hg78DX1Oxi6veQ1BvO6Il9NP7hC'
+        },
+        {
+          id: 'doktor-02',
+          ad: 'Doktor 2',
+          sifre_hash: '$2b$10$vScpCHWDca7tlw9w9SzTB.DAnDbRuro4fKAH6Wen2XFni6Gb9ugO6'
+        }
+      ];
+    }
+
+    for (const d of doctorList) {
+      await pool.query(
+        'INSERT INTO doctors (id, ad, sifre_hash) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET ad = EXCLUDED.ad',
+        [d.id, d.ad, d.sifre_hash]
+      );
+    }
+    console.log('Doktorlar veritabanı senkronizasyonu tamamlandı.');
 
     // 4. Tablolar boş mu kontrol et
     const activeCountRes = await pool.query('SELECT COUNT(*) FROM cases');
