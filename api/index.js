@@ -269,29 +269,41 @@ function readBody(req) {
 }
 
 // ─── Oturum Yönetimi ─────────────────────────────────────────────────────────
+const SECRET_KEY = process.env.SESSION_SECRET || 'radyolabel-secret-key-123';
+
 function createSession(doktorId) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const son_kullanma = Date.now() + SESSION_DURATION;
-  sessions.set(token, { doktor_id: doktorId, son_kullanma });
+  const expiry = Date.now() + SESSION_DURATION;
+  const data = `${doktorId}:${expiry}`;
+  const signature = crypto.createHmac('sha256', SECRET_KEY).update(data).digest('hex');
+  const token = `${data}:${signature}`;
+  sessions.set(token, { doktor_id: doktorId, son_kullanma: expiry }); // compatibility fallback
   return token;
 }
 
 function refreshSessionExpiry(token) {
-  const session = sessions.get(token);
-  if (session) {
-    session.son_kullanma = Date.now() + SESSION_DURATION;
-  }
+  // no-op
 }
 
 function validateSession(token) {
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (Date.now() > session.son_kullanma) {
-    sessions.delete(token);
+  try {
+    if (!token) return null;
+    const parts = token.split(':');
+    if (parts.length !== 3) return null;
+    const [doktorId, expiryStr, signature] = parts;
+    const expiry = parseInt(expiryStr);
+    
+    // Check expiration
+    if (Date.now() > expiry) return null;
+    
+    // Validate signature
+    const data = `${doktorId}:${expiryStr}`;
+    const expectedSignature = crypto.createHmac('sha256', SECRET_KEY).update(data).digest('hex');
+    if (signature !== expectedSignature) return null;
+    
+    return { doktor_id: doktorId, son_kullanma: expiry };
+  } catch (e) {
     return null;
   }
-  refreshSessionExpiry(token);
-  return session;
 }
 
 function getSessionToken(req) {
