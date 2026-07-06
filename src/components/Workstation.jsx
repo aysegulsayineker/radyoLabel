@@ -189,7 +189,14 @@ export default function Workstation({
     });
   }
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const submit = useCallback((action) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    // Güvenlik kilidi: Herhangi bir hatada butonların kilitli kalmaması için 3 saniye sonra kilidi aç
+    window.setTimeout(() => setIsSubmitting(false), 3000);
+
     const included = action !== 'reddedildi';
     const datasetEdited = action === 'duzenlendi';
     setFlash(action);
@@ -213,7 +220,7 @@ export default function Workstation({
       },
       dataset_edited: datasetEdited && included,
     });
-  }, [datasetDraft, decision, onDoctorSubmit, vaka]);
+  }, [datasetDraft, decision, onDoctorSubmit, vaka, isSubmitting]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -230,7 +237,7 @@ export default function Workstation({
         onNext();
         return;
       }
-      if (isSubmitted || !canEdit) return;
+      if (isSubmitted || !canEdit || isSubmitting) return;
 
       const key = event.key.toLowerCase();
         if (key === 'o' || event.key === 'Enter') {
@@ -252,7 +259,7 @@ export default function Workstation({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canEdit, editing, isSubmitted, onNext, onPrev, submit]);
+  }, [canEdit, editing, isSubmitted, isSubmitting, onNext, onPrev, submit]);
 
   const patientRows = [
     ['Yaş / Cinsiyet', display.age_gender, null],
@@ -471,19 +478,19 @@ export default function Workstation({
           <div className="action-dock">
             {!editing && (
               <>
-                <button className="approve-button" type="button" onClick={() => submit('onaylandi')} disabled={!canEdit}>Onayla</button>
-                <button className="reject-button" type="button" onClick={() => submit('reddedildi')} disabled={!canEdit}>Reddet</button>
-                <button className="edit-button" type="button" onClick={() => setEditing(true)} disabled={!canEdit}>Düzenle</button>
+                <button className="approve-button" type="button" onClick={() => submit('onaylandi')} disabled={!canEdit || isSubmitting}>Onayla</button>
+                <button className="reject-button" type="button" onClick={() => submit('reddedildi')} disabled={!canEdit || isSubmitting}>Reddet</button>
+                <button className="edit-button" type="button" onClick={() => setEditing(true)} disabled={!canEdit || isSubmitting}>Düzenle</button>
               </>
             )}
             {editing && (
               <>
-                <button className="approve-button" type="button" onClick={() => submit('duzenlendi')} disabled={!canEdit}>Düzenlenmiş kaydet</button>
+                <button className="approve-button" type="button" onClick={() => submit('duzenlendi')} disabled={!canEdit || isSubmitting}>Düzenlenmiş kaydet</button>
                 <button className="edit-button" type="button" onClick={() => {
                   setEditing(false);
                   setDatasetDraft(() => buildDatasetInitial(vaka, rol));
                   setDecision(() => buildDecisionInitial(vaka, rol));
-                }} disabled={!canEdit}>Vazgeç</button>
+                }} disabled={!canEdit || isSubmitting}>Vazgeç</button>
               </>
             )}
           </div>
