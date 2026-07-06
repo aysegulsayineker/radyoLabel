@@ -478,6 +478,14 @@ export default function App() {
       }),
     })
       .then((response) => {
+        if (response.status === 401) {
+          sessionStorage.removeItem(TOKEN_KEY);
+          sessionStorage.removeItem(DOKTOR_ID_KEY);
+          sessionStorage.removeItem('radyoloji-doktor-adi');
+          setOturum(null);
+          alert("Oturumunuzun süresi dolmuş veya geçersiz kılınmış. Lütfen tekrar giriş yapın.");
+          throw new Error('Oturum sonlandi.');
+        }
         if (response.status === 409) {
           return fetch(API_URL, { headers: authHeaders() })
             .then((r) => r.json())
@@ -498,7 +506,8 @@ export default function App() {
           }
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err.message === 'Oturum sonlandi.') return;
         setServerStatus('offline');
         setSaveError({ message: 'Karar sunucuya kaydedilemedi. Yerel yedek aktif.', timestamp: Date.now() });
       });
