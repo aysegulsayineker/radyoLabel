@@ -309,7 +309,7 @@ export default function App() {
 
   const [theme, setTheme] = useState(getInitialTheme);
   const [oturum, setOturum] = useState(getStoredAuth);
-  const [rol] = useState(() => getInitialRole(oturum?.doktorId));
+  const rol = useMemo(() => getInitialRole(oturum?.doktorId), [oturum?.doktorId]);
   const [vakalar, setVakalar] = useState(loadCases);
   const [selectedId, setSelectedId] = useState(() => loadCases()[0]?.case_id || null);
   const [arananId, setArananId] = useState('');
@@ -369,12 +369,29 @@ export default function App() {
             sessionStorage.removeItem(TOKEN_KEY);
             sessionStorage.removeItem(DOKTOR_ID_KEY);
             setOturum(null);
-            return;
+            return null;
           }
-          setServerStatus(r.ok ? 'online' : 'offline');
+          if (r.ok) {
+            setServerStatus('online');
+            return r.json();
+          }
+          setServerStatus('offline');
+          return null;
+        })
+        .then((serverCases) => {
+          if (!serverCases) return;
+          const normalized = serverCases.map(normalizeCase);
+          setVakalar((prevVakalar) => {
+            const hash = (list) => list.map(v => `${v.case_id}:${v.doctor_a?.submitted_at}:${v.doctor_b?.submitted_at}:${v.dataset_revision?.edited_at}:${v._version}`).join(',');
+            if (hash(prevVakalar) !== hash(normalized)) {
+              saveOverlay(normalized);
+              return normalized;
+            }
+            return prevVakalar;
+          });
         })
         .catch(() => setServerStatus('offline'));
-    }, 30000);
+    }, 5000); // 5 saniyede bir otomatik olarak yeni verileri çek
     return () => clearInterval(interval);
   }, [oturum?.token]);
 
