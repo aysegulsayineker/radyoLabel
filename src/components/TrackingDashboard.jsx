@@ -235,6 +235,54 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
     }
   };
 
+  const handleDownloadApproved = async () => {
+    const choice = window.prompt(
+      "Lütfen indirmek istediğiniz tek/kısmen onaylı veri setini seçin:\n\n" +
+      "1 - Tüm Tek Onaylı Vakalar (Herhangi bir hekimin onayladığı ama tamamlanmamış vakalar)\n" +
+      "2 - Sadece Serdar Sipahioğlu'nun onayladığı vakalar (Doktor A)\n" +
+      "3 - Sadece Doktor 2'nin onayladığı vakalar (Doktor B)\n\n" +
+      "Seçiminizi yazın (1, 2 veya 3):",
+      "1"
+    );
+
+    if (choice === null) return; // İptal edildi
+
+    let typeParam = 'all';
+    let filename = 'tek-onayli-vakalar.json';
+
+    if (choice.trim() === '2') {
+      typeParam = 'A';
+      filename = 'tek-onayli-serdar-sipahioglu.json';
+    } else if (choice.trim() === '3') {
+      typeParam = 'B';
+      filename = 'tek-onayli-doktor-2.json';
+    } else if (choice.trim() !== '1') {
+      alert("Geçersiz seçim yaptınız. Lütfen 1, 2 veya 3 yazın.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${apiUrl}/public/download-approved?type=${typeParam}`);
+      if (!response.ok) {
+        throw new Error('İndirme başarısız veya kısmen onaylı vaka dosyası henüz boş.');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const allSelectedOnPage = pagedCases.length > 0 && pagedCases.every((c) => selectedIds.has(c.case_id));
 
   return (
@@ -258,6 +306,10 @@ export default function TrackingDashboard({ onBack, apiUrl }) {
           <button type="button" className="takip-download-btn" onClick={handleDownloadCompleted} disabled={loading}>
             <Download size={15} />
             <span>Tamamlananları İndir (JSON)</span>
+          </button>
+          <button type="button" className="takip-download-btn" onClick={handleDownloadApproved} disabled={loading}>
+            <Download size={15} />
+            <span>Onaylı Olanları İndir (JSON)</span>
           </button>
           <button type="button" className="takip-reset-all-btn" onClick={handleResetAll} disabled={loading}>
             <Trash2 size={15} />

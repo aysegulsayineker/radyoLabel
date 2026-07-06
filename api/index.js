@@ -467,6 +467,46 @@ module.exports = async (req, res) => {
     }
     return;
   }
+  // GET /api/public/download-approved
+  if (url.startsWith('/api/public/download-approved') && req.method === 'GET') {
+    try {
+      const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+      const type = parsedUrl.searchParams.get('type') || 'all'; // 'all', 'A', 'B'
+
+      const dbRes = await pool.query('SELECT data FROM cases ORDER BY case_id ASC');
+      const allCases = dbRes.rows.map((row) => row.data);
+
+      let filteredCases = [];
+      let filename = 'tek-onayli-vakalar.json';
+
+      if (type === 'A') {
+        filteredCases = allCases.filter(c => c.doctor_a?.submitted_at && !c.doctor_b?.submitted_at);
+        filename = 'tek-onayli-serdar-sipahioglu.json';
+      } else if (type === 'B') {
+        filteredCases = allCases.filter(c => !c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+        filename = 'tek-onayli-doktor-2.json';
+      } else {
+        filteredCases = allCases.filter(c => 
+          (c.doctor_a?.submitted_at && !c.doctor_b?.submitted_at) || 
+          (!c.doctor_a?.submitted_at && c.doctor_b?.submitted_at)
+        );
+        filename = 'tek-onayli-vakalar.json';
+      }
+
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename=${filename}`,
+      });
+      res.end(JSON.stringify(filteredCases, null, 2));
+    } catch (error) {
+      sendJson(res, 500, { error: 'Dosya indirilemedi: ' + error.message });
+    }
+    return;
+  }
+
 
   // POST /api/public/reset-cases
   if (url.startsWith('/api/public/reset-cases') && req.method === 'POST') {
