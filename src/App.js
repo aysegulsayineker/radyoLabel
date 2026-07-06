@@ -606,14 +606,13 @@ export default function App() {
       updatedCase?.decision_set_entries
     );
 
-    const nextPending = nextCases.find((vaka) => {
-      const cat = getCaseCategory(vaka, rol);
-      return cat === 'islerim' || cat === 'diger_havuz';
-    });
-    if (nextPending) {
-      setSelectedId(nextPending.case_id);
-      setAktifListe(getCaseCategory(nextPending, rol));
-      setListeSayfasi(0);
+    // Doktorun bulunduğu aktif sekmede kalmasını sağla, sekmedeki bir sonraki vakayı seç
+    const categoryCases = nextCases.filter((vaka) => getCaseCategory(vaka, rol) === aktifListe);
+    const nextCaseInTab = categoryCases.find((vaka) => vaka.case_id !== caseId);
+    if (nextCaseInTab) {
+      setSelectedId(nextCaseInTab.case_id);
+    } else {
+      setSelectedId(null);
     }
   }
 
