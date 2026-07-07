@@ -19,6 +19,7 @@ export const IMAGING_OPTIONS = [
   'US Abdomen',
   'US Abdomen (graded compression)',
   'US Pelvik (TV)',
+  'US Pelvik (Transabdominal)',
   'US Doppler Alt Ekstremite',
   'US Doppler Skrotal',
   'FAST US',
