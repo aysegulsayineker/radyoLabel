@@ -24,6 +24,7 @@ export const IMAGING_OPTIONS = [
   'US Doppler Skrotal',
   'FAST US',
   'X-Ray Toraks',
+  'X-Ray ADBG',
   'X-Ray Ekstremite',
   'X-Ray Pelvis/Kalça',
   'X-Ray Ayak Bileği',
