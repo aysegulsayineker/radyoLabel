@@ -4,6 +4,7 @@ export const IMAGING_OPTIONS = [
   'BTA Beyin',
   'MR Beyin (DWI dahil)',
   'MRA Beyin',
+  'BT Maksillofasyal',
   'BT Travma protokolü',
   'BT Servikal/Lomber Omurga',
   'MR Omurga',
