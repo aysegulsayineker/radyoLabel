@@ -16,10 +16,10 @@ const sourceFile = path.join(__dirname, 'src', 'data', 'hasta_veri.json');
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 saate kadar valid
 const sessions = new Map(); // token => { doktor_id, son_kullanma }
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/radyolabel';
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.opoyatyenbyjgurdzoor:nulL1dqkEWtv4ZSH@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
 const pool = new Pool({
   connectionString,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false },
 });
 
 // ─── Versiyon Takibi ─────────────────────────────────────────────────────────
