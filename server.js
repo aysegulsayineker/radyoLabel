@@ -27,6 +27,8 @@ const pool = new Pool({
 // PATCH isteğinde client'ın gönderdiği versiyon sunucudakiyle eşleşmezse 409 döner.
 const caseVersions = new Map();
 
+let dbConnected = false;
+
 function ensureDataFile() {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -39,7 +41,149 @@ function ensureDataFile() {
   }
 }
 
+function readCasesFromJson() {
+  try {
+    ensureDataFile();
+    let localActive = [];
+    if (fs.existsSync(dataFile)) {
+      const raw = fs.readFileSync(dataFile, 'utf8');
+      try {
+        localActive = JSON.parse(raw);
+      } catch (e) { /* ignore */ }
+    }
+    let localCompleted = [];
+    if (fs.existsSync(completedFile)) {
+      const raw = fs.readFileSync(completedFile, 'utf8');
+      try {
+        localCompleted = JSON.parse(raw);
+      } catch (e) { /* ignore */ }
+    }
+    const allCases = [...localActive, ...localCompleted];
+    allCases.sort((a, b) => a.case_id.localeCompare(b.case_id));
+    return allCases;
+  } catch (err) {
+    console.error('JSON dosyası okuma hatası:', err.message);
+    return [];
+  }
+}
+
+function writeSingleCaseToJson(c) {
+  try {
+    ensureDataFile();
+    const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+    
+    // Read active cases
+    let localActive = [];
+    if (fs.existsSync(dataFile)) {
+      try {
+        localActive = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+      } catch (e) { localActive = []; }
+    }
+    
+    // Read completed cases
+    let localCompleted = [];
+    if (fs.existsSync(completedFile)) {
+      try {
+        localCompleted = JSON.parse(fs.readFileSync(completedFile, 'utf8'));
+      } catch (e) { localCompleted = []; }
+    }
+    
+    if (isCompleted) {
+      const idx = localCompleted.findIndex(item => item.case_id === c.case_id);
+      if (idx !== -1) {
+        localCompleted[idx] = c;
+      } else {
+        localCompleted.push(c);
+      }
+      localActive = localActive.filter(item => item.case_id !== c.case_id);
+    } else {
+      const idx = localActive.findIndex(item => item.case_id === c.case_id);
+      if (idx !== -1) {
+        localActive[idx] = c;
+      } else {
+        localActive.push(c);
+      }
+      localCompleted = localCompleted.filter(item => item.case_id !== c.case_id);
+    }
+    
+    fs.writeFileSync(dataFile, JSON.stringify(localActive, null, 2), 'utf8');
+    fs.writeFileSync(completedFile, JSON.stringify(localCompleted, null, 2), 'utf8');
+  } catch (err) {
+    console.error('writeSingleCaseToJson hatası:', err.message);
+  }
+}
+
+function writeCasesToJson(cases) {
+  try {
+    ensureDataFile();
+    const active = [];
+    const completed = [];
+    for (const c of cases) {
+      const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
+      if (isCompleted) {
+        completed.push(c);
+      } else {
+        active.push(c);
+      }
+    }
+    fs.writeFileSync(dataFile, JSON.stringify(active, null, 2), 'utf8');
+    fs.writeFileSync(completedFile, JSON.stringify(completed, null, 2), 'utf8');
+  } catch (err) {
+    console.error('writeCasesToJson hatası:', err.message);
+  }
+}
+
+function loadDoctorsFromJson() {
+  try {
+    if (fs.existsSync(doctorsFile)) {
+      const raw = fs.readFileSync(doctorsFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (parsed.doktorlar || []);
+    }
+  } catch (e) {
+    console.error('loadDoctorsFromJson hatası:', e.message);
+  }
+  // Default fallback
+  const fallback = [
+    {
+      id: 'doktor-01',
+      ad: 'Serdar Sipahioğlu',
+      sifre_hash: '$2b$10$z9zxp76chkfYWHLGkqbg.uVcB0Hg78DX1Oxi6veQ1BvO6Il9NP7hC'
+    },
+    {
+      id: 'doktor-02',
+      ad: 'Doktor 2',
+      sifre_hash: '$2b$10$IVPP9uK7MTu1mpcaoRbkvuXasPKpmXDncmBuRJMtgjABmeljtp4Em'
+    }
+  ];
+  try {
+    fs.writeFileSync(doctorsFile, JSON.stringify(fallback, null, 2), 'utf8');
+  } catch (e) { /* ignore */ }
+  return fallback;
+}
+
+function saveDoctorsToJson(doctors) {
+  try {
+    ensureDataFile();
+    fs.writeFileSync(doctorsFile, JSON.stringify(doctors, null, 2), 'utf8');
+  } catch (e) {
+    console.error('saveDoctorsToJson hatası:', e.message);
+  }
+}
+
 async function initDatabase() {
+  try {
+    // Test database connection
+    const client = await pool.connect();
+    client.release();
+    dbConnected = true;
+    console.log('PostgreSQL veritabanı bağlantısı başarılı.');
+  } catch (err) {
+    dbConnected = false;
+    console.warn('PostgreSQL bağlantı hatası, JSON dosyası moduna geçiliyor:', err.message);
+    return;
+  }
+
   try {
     // 1. cases ve finishcases tablolarını oluştur
     await pool.query(`
@@ -216,6 +360,9 @@ function createBackup() {
 }
 
 async function readCases() {
+  if (!dbConnected) {
+    return readCasesFromJson();
+  }
   try {
     const activeRes = await pool.query('SELECT data FROM cases');
     const finishRes = await pool.query('SELECT data FROM finishcases');
@@ -223,12 +370,17 @@ async function readCases() {
     allCases.sort((a, b) => a.case_id.localeCompare(b.case_id));
     return allCases;
   } catch (err) {
-    console.error('readCases veritabanı okuma hatası:', err.message);
-    return [];
+    console.error('readCases veritabanı okuma hatası, JSON dosyasına yönlendiriliyor:', err.message);
+    return readCasesFromJson();
   }
 }
 
 async function writeSingleCase(c) {
+  // Her zaman JSON dosyalarına da yaz
+  writeSingleCaseToJson(c);
+  
+  if (!dbConnected) return;
+
   try {
     const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
     if (isCompleted) {
@@ -265,6 +417,11 @@ async function writeSingleCase(c) {
 }
 
 async function writeCases(cases) {
+  // Her zaman JSON dosyalarına da yaz
+  writeCasesToJson(cases);
+  
+  if (!dbConnected) return;
+
   try {
     for (const c of cases) {
       const isCompleted = Boolean(c.doctor_a?.submitted_at && c.doctor_b?.submitted_at);
@@ -369,16 +526,24 @@ function requireAuth(req, res) {
 }
 
 async function loadDoctors() {
+  if (!dbConnected) {
+    return loadDoctorsFromJson();
+  }
   try {
     const res = await pool.query('SELECT id, ad, sifre_hash FROM doctors ORDER BY id ASC');
     return res.rows;
   } catch (err) {
-    console.error('loadDoctors hatası:', err.message);
-    return [];
+    console.error('loadDoctors veritabanı hatası, JSON dosyasına yönlendiriliyor:', err.message);
+    return loadDoctorsFromJson();
   }
 }
 
 async function saveDoctors(doctors) {
+  // Her zaman JSON dosyalarına da kaydet
+  saveDoctorsToJson(doctors);
+  
+  if (!dbConnected) return;
+
   try {
     for (const d of doctors) {
       await pool.query(
@@ -498,21 +663,39 @@ const server = http.createServer(async (req, res) => {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const part = parsedUrl.searchParams.get('part') || 'all';
 
-      let query = 'SELECT data FROM finishcases';
+      let completedCases = [];
       let filename = 'tamamlanan-vakalar.json';
 
-      if (part === '1') {
-        query += " WHERE case_id <= 'CASE-101000'";
-        filename = 'tamamlanan-vakalar-part-1.json';
-      } else if (part === '2') {
-        query += " WHERE case_id > 'CASE-101000'";
-        filename = 'tamamlanan-vakalar-part-2.json';
+      if (dbConnected) {
+        let query = 'SELECT data FROM finishcases';
+        if (part === '1') {
+          query += " WHERE case_id <= 'CASE-101000'";
+          filename = 'tamamlanan-vakalar-part-1.json';
+        } else if (part === '2') {
+          query += " WHERE case_id > 'CASE-101000'";
+          filename = 'tamamlanan-vakalar-part-2.json';
+        }
+        query += ' ORDER BY case_id ASC';
+        const dbRes = await pool.query(query);
+        completedCases = dbRes.rows.map((row) => row.data);
+      } else {
+        let allCompleted = [];
+        if (fs.existsSync(completedFile)) {
+          try {
+            allCompleted = JSON.parse(fs.readFileSync(completedFile, 'utf8'));
+          } catch (e) { allCompleted = []; }
+        }
+        if (part === '1') {
+          completedCases = allCompleted.filter(c => c.case_id <= 'CASE-101000');
+          filename = 'tamamlanan-vakalar-part-1.json';
+        } else if (part === '2') {
+          completedCases = allCompleted.filter(c => c.case_id > 'CASE-101000');
+          filename = 'tamamlanan-vakalar-part-2.json';
+        } else {
+          completedCases = allCompleted;
+        }
+        completedCases.sort((a, b) => a.case_id.localeCompare(b.case_id));
       }
-
-      query += ' ORDER BY case_id ASC';
-
-      const dbRes = await pool.query(query);
-      const completedCases = dbRes.rows.map((row) => row.data);
 
       res.writeHead(200, {
         'Access-Control-Allow-Origin': '*',
@@ -533,8 +716,18 @@ const server = http.createServer(async (req, res) => {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const type = parsedUrl.searchParams.get('type') || 'all'; // 'all', 'A', 'B'
 
-      const dbRes = await pool.query('SELECT data FROM cases ORDER BY case_id ASC');
-      const allCases = dbRes.rows.map((row) => row.data);
+      let allCases = [];
+      if (dbConnected) {
+        const dbRes = await pool.query('SELECT data FROM cases ORDER BY case_id ASC');
+        allCases = dbRes.rows.map((row) => row.data);
+      } else {
+        if (fs.existsSync(dataFile)) {
+          try {
+            allCases = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+          } catch (e) { allCases = []; }
+        }
+        allCases.sort((a, b) => a.case_id.localeCompare(b.case_id));
+      }
 
       let filteredCases = [];
       let filename = 'tek-onayli-vakalar.json';
