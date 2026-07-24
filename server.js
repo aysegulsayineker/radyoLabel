@@ -30,14 +30,18 @@ const caseVersions = new Map();
 let dbConnected = false;
 
 function ensureDataFile() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
-  }
-  if (!fs.existsSync(dataFile)) {
-    fs.copyFileSync(sourceFile, dataFile);
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    if (!fs.existsSync(dataFile)) {
+      fs.copyFileSync(sourceFile, dataFile);
+    }
+  } catch (e) {
+    console.warn('ensureDataFile warning:', e.message);
   }
 }
 

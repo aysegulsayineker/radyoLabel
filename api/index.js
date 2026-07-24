@@ -26,16 +26,21 @@ let dbConnected = false;
 const caseVersions = new Map();
 
 function ensureDataFile() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
-  }
-  if (!fs.existsSync(dataFile)) {
-    if (fs.existsSync(sourceFile)) {
-      fs.copyFileSync(sourceFile, dataFile);
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
     }
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    if (!fs.existsSync(dataFile)) {
+      if (fs.existsSync(sourceFile)) {
+        fs.copyFileSync(sourceFile, dataFile);
+      }
+    }
+  } catch (e) {
+    // Vercel serverless read-only filesystem warning
+    console.warn('ensureDataFile warning:', e.message);
   }
 }
 
