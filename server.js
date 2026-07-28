@@ -175,6 +175,39 @@ function saveDoctorsToJson(doctors) {
   }
 }
 
+async function getDbStateHash() {
+  if (dbConnected) {
+    try {
+      const res = await pool.query(`
+        SELECT COALESCE(MAX(updated_at), '1970-01-01') as max_update 
+        FROM (
+          SELECT MAX(updated_at) as updated_at FROM cases
+          UNION ALL
+          SELECT MAX(updated_at) as updated_at FROM finishcases
+        ) t
+      `);
+      const maxUpdate = res.rows[0].max_update;
+      return String(new Date(maxUpdate).getTime());
+    } catch (err) {
+      console.error('getDbStateHash veritabanı hatası:', err.message);
+    }
+  }
+  
+  // JSON mode fallback
+  try {
+    let maxTime = 0;
+    if (fs.existsSync(dataFile)) {
+      maxTime = Math.max(maxTime, fs.statSync(dataFile).mtimeMs);
+    }
+    if (fs.existsSync(completedFile)) {
+      maxTime = Math.max(maxTime, fs.statSync(completedFile).mtimeMs);
+    }
+    return String(maxTime);
+  } catch (err) {
+    return 'fallback-' + Date.now();
+  }
+}
+
 async function initDatabase() {
   try {
     // Test database connection
@@ -895,6 +928,19 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: true, mesaj: 'Sifre basariyla degistirildi.' });
     } catch (error) {
       sendJson(res, 500, { error: 'Sifre degistirilemedi: ' + error.message });
+    }
+    return;
+  }
+
+  // GET /api/cases/sync-check — Hafif veri eşitleme kontrolü
+  if (req.url === '/api/cases/sync-check' && req.method === 'GET') {
+    const session = requireAuth(req, res);
+    if (!session) return;
+    try {
+      const hash = await getDbStateHash();
+      sendJson(res, 200, { hash });
+    } catch (error) {
+      sendJson(res, 500, { error: 'Eşleme kontrolü yapılamadı: ' + error.message });
     }
     return;
   }

@@ -311,6 +311,7 @@ export default function App() {
   const [oturum, setOturum] = useState(getStoredAuth);
   const rol = useMemo(() => getInitialRole(oturum?.doktorId), [oturum?.doktorId]);
   const [vakalar, setVakalar] = useState(loadCases);
+  const [casesHash, setCasesHash] = useState('');
   const [selectedId, setSelectedId] = useState(() => loadCases()[0]?.case_id || null);
   const [arananId, setArananId] = useState('');
   const [aktifListe, setAktifListe] = useState('islerim');
@@ -354,6 +355,16 @@ export default function App() {
         setSelectedId((currentId) => currentId || normalized[0]?.case_id || null);
         saveOverlay(normalized);
         setServerStatus('online');
+
+        // İlk yüklemede güncel veritabanı hash bilgisini de çek
+        fetch(`${API_BASE}/cases/sync-check`, { headers: baslik, cache: 'no-store' })
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data && data.hash) {
+              setCasesHash(data.hash);
+            }
+          })
+          .catch(() => {});
       })
       .catch(() => {
         setServerStatus('offline');
@@ -363,7 +374,7 @@ export default function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       if (!oturum?.token) return;
-      fetch(API_URL, { headers: { Authorization: `Bearer ${oturum.token}` }, cache: 'no-store' })
+      fetch(`${API_BASE}/cases/sync-check`, { headers: { Authorization: `Bearer ${oturum.token}` }, cache: 'no-store' })
         .then((r) => {
           if (r.status === 401) {
             sessionStorage.removeItem(TOKEN_KEY);
@@ -378,22 +389,26 @@ export default function App() {
           setServerStatus('offline');
           return null;
         })
-        .then((serverCases) => {
-          if (!serverCases) return;
-          const normalized = serverCases.map(normalizeCase);
-          setVakalar((prevVakalar) => {
-            const hash = (list) => list.map(v => `${v.case_id}:${v.doctor_a?.submitted_at}:${v.doctor_b?.submitted_at}:${v.dataset_revision?.edited_at}:${v._version}`).join(',');
-            if (hash(prevVakalar) !== hash(normalized)) {
-              saveOverlay(normalized);
-              return normalized;
-            }
-            return prevVakalar;
-          });
+        .then((data) => {
+          if (!data || !data.hash) return;
+
+          // Veritabanı durumu değiştiyse tam vaka listesini çek
+          if (data.hash !== casesHash) {
+            fetch(API_URL, { headers: { Authorization: `Bearer ${oturum.token}` }, cache: 'no-store' })
+              .then((r) => r.ok ? r.json() : null)
+              .then((serverCases) => {
+                if (!serverCases) return;
+                const normalized = serverCases.map(normalizeCase);
+                saveOverlay(normalized);
+                setVakalar(normalized);
+                setCasesHash(data.hash);
+              });
+          }
         })
         .catch(() => setServerStatus('offline'));
     }, 5000); // 5 saniyede bir otomatik olarak yeni verileri çek
     return () => clearInterval(interval);
-  }, [oturum?.token]);
+  }, [oturum?.token, casesHash]);
 
   const stats = useMemo(() => {
     if (!rol) {
