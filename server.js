@@ -1045,8 +1045,7 @@ const server = http.createServer(async (req, res) => {
         const match = (
           patch.data.imaging_choice === peer.imaging_choice &&
           patch.data.treatment_decision === peer.treatment_decision &&
-          patch.data.triage === peer.triage &&
-          patch.data.ai_action === peer.ai_action
+          patch.data.triage === peer.triage
         );
         if (!match) {
           targetCase[otherKey] = {

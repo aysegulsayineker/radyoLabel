@@ -103,27 +103,44 @@ function patternFor(vaka) {
 
 function buildDatasetInitial(vaka, rol) {
   const conditions = getConditions(vaka);
-  const revision = vaka[doctorKeyFor(rol)]?.dataset_revision || {};
+  
+  const myKey = doctorKeyFor(rol);
+  const peerKey = rol === 'A' ? 'doctor_b' : 'doctor_a';
+  
+  const myDoc = vaka[myKey] || {};
+  const peerDoc = vaka[peerKey] || {};
+  
+  const revision = myDoc.submitted_at && myDoc.dataset_revision 
+    ? myDoc.dataset_revision 
+    : (peerDoc.submitted_at && peerDoc.dataset_revision ? peerDoc.dataset_revision : null);
+
   return {
     complaintPreset: 'Mevcut sikayet metni korunsun',
-    complaint: revision.complaint || vaka.complaint || '',
-    symptoms: revision.symptoms || vaka.symptoms || [],
-    urgency_level: revision.urgency_level || vaka.urgency_level || 'Orta',
-    pregnancy_status: revision.pregnancy_status || conditions.pregnancy_status || 'Yok',
-    renal_function: revision.renal_function || conditions.renal_function || 'Normal',
-    contrast_allergy: revision.contrast_allergy || conditions.contrast_allergy || 'Yok',
-    metal_implant: revision.metal_implant || conditions.metal_implant || 'Yok',
-    hemodynamic_status: revision.hemodynamic_status || conditions.hemodynamic_status || 'Stabil',
+    complaint: revision ? revision.complaint : (vaka.complaint || ''),
+    symptoms: revision ? (revision.symptoms || []) : (vaka.symptoms || []),
+    urgency_level: revision ? revision.urgency_level : (vaka.urgency_level || 'Orta'),
+    pregnancy_status: revision ? revision.pregnancy_status : (conditions.pregnancy_status || 'Yok'),
+    renal_function: revision ? revision.renal_function : (conditions.renal_function || 'Normal'),
+    contrast_allergy: revision ? revision.contrast_allergy : (conditions.contrast_allergy || 'Yok'),
+    metal_implant: revision ? revision.metal_implant : (conditions.metal_implant || 'Yok'),
+    hemodynamic_status: revision ? revision.hemodynamic_status : (conditions.hemodynamic_status || 'Stabil'),
   };
 }
 
 function buildDecisionInitial(vaka, rol) {
-  const doctor = vaka[doctorKeyFor(rol)] || {};
+  const myKey = doctorKeyFor(rol);
+  const peerKey = rol === 'A' ? 'doctor_b' : 'doctor_a';
+  
+  const myDoc = vaka[myKey] || {};
+  const peerDoc = vaka[peerKey] || {};
+  
+  const source = myDoc.submitted_at ? myDoc : (peerDoc.submitted_at ? peerDoc : null);
   const display = getDisplayFields(vaka);
+  
   return {
-    imaging_choice: doctor.imaging_choice || display.primary_recommendation,
-    treatment_decision: doctor.treatment_decision || display.rationale,
-    triage: doctor.triage || display.urgency || 'Acil (<1 saat)',
+    imaging_choice: source ? source.imaging_choice : display.primary_recommendation,
+    treatment_decision: source ? source.treatment_decision : display.rationale,
+    triage: source ? source.triage : (display.urgency || 'Acil (<1 saat)'),
   };
 }
 
@@ -424,7 +441,7 @@ export default function Workstation({
         <div className="decision-head">
           <div>
             <p className="eyebrow">Karar</p>
-            <h2>{display.primary_recommendation}</h2>
+            <h2>{decision.imaging_choice || display.primary_recommendation}</h2>
           </div>
           <strong>{listTotal === 0 ? 0 : listIndex + 1} / {listTotal}</strong>
         </div>

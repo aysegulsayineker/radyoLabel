@@ -585,8 +585,7 @@ export default function App() {
         const match = (
           doctorDecision.imaging_choice === peer.imaging_choice &&
           doctorDecision.treatment_decision === peer.treatment_decision &&
-          doctorDecision.triage === peer.triage &&
-          doctorDecision.ai_action === peer.ai_action
+          doctorDecision.triage === peer.triage
         );
         if (!match) {
           updatedPeer = {
