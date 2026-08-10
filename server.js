@@ -1010,9 +1010,20 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      // Dosyadan oku, hedef vakayı bul
+      const cases = await readCases();
+      const caseIndex = cases.findIndex((c) => c.case_id === patchCaseId);
+
+      if (caseIndex === -1) {
+        sendJson(res, 404, { error: 'Vaka bulunamadi.', case_id: patchCaseId });
+        return;
+      }
+
+      const targetCase = cases[caseIndex];
+
       // Versiyon kontrolü
       const clientVersion = patch._version;
-      const serverVersion = caseVersions.get(patchCaseId) || 1;
+      const serverVersion = targetCase._version || 1;
 
       if (clientVersion !== undefined && clientVersion !== serverVersion) {
         // Çakışma! Client'ın verisi eski.
@@ -1025,17 +1036,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // Dosyadan oku, hedef vakayı bul
-      const cases = await readCases();
-      const caseIndex = cases.findIndex((c) => c.case_id === patchCaseId);
-
-      if (caseIndex === -1) {
-        sendJson(res, 404, { error: 'Vaka bulunamadi.', case_id: patchCaseId });
-        return;
-      }
-
       // Sadece ilgili doktor alanını güncelle (diğer doktorun verisine dokunma)
-      const targetCase = cases[caseIndex];
       targetCase[patch.doctor_key] = patch.data;
 
       // Kararlar uyuşmuyorsa diğer doktorun onayını sıfırla (tekrar onayına düşmesi için)

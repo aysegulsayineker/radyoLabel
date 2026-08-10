@@ -962,8 +962,18 @@ module.exports = async (req, res) => {
         return;
       }
 
+      const cases = await readCases();
+      const caseIndex = cases.findIndex((c) => c.case_id === patchCaseId);
+
+      if (caseIndex === -1) {
+        sendJson(res, 404, { error: 'Vaka bulunamadi.', case_id: patchCaseId });
+        return;
+      }
+
+      const targetCase = cases[caseIndex];
+
       const clientVersion = patch._version;
-      const serverVersion = caseVersions.get(patchCaseId) || 1;
+      const serverVersion = targetCase._version || 1;
 
       if (clientVersion !== undefined && clientVersion !== serverVersion) {
         sendJson(res, 409, {
@@ -975,15 +985,6 @@ module.exports = async (req, res) => {
         return;
       }
 
-      const cases = await readCases();
-      const caseIndex = cases.findIndex((c) => c.case_id === patchCaseId);
-
-      if (caseIndex === -1) {
-        sendJson(res, 404, { error: 'Vaka bulunamadi.', case_id: patchCaseId });
-        return;
-      }
-
-      const targetCase = cases[caseIndex];
       targetCase[patch.doctor_key] = patch.data;
 
       const otherKey = patch.doctor_key === 'doctor_a' ? 'doctor_b' : 'doctor_a';

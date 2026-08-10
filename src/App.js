@@ -502,6 +502,7 @@ export default function App() {
           throw new Error('Oturum sonlandi.');
         }
         if (response.status === 409) {
+          setSaveError({ message: 'Sürüm çakışması tespit edildi. Değişiklikleriniz sunucuyla eşitlendi, lütfen tekrar deneyin.', timestamp: Date.now() });
           return fetch(API_URL, { headers: authHeaders() })
             .then((r) => r.json())
             .then((serverCases) => {
