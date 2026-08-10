@@ -566,9 +566,25 @@ export default function App() {
       submitted_at: now,
     };
 
+    const targetVaka = vakalar.find((v) => v.case_id === caseId) || {};
+    const otherRole = rol === 'A' ? 'B' : 'A';
+    const otherKey = doctorKeyFor(otherRole);
+    const peer = targetVaka[otherKey] || {};
+
+    let actionName = 'review_rejected';
+    if (included) {
+      if (payload.ai_action === 'duzenlendi') {
+        actionName = 'review_edited';
+      } else if (peer.submitted_at && peer.ai_action === 'duzenlendi') {
+        actionName = 'peer_approved';
+      } else {
+        actionName = 'review_approved';
+      }
+    }
+
     const historyEntry = {
       by: oturum?.doktorAdi || 'Uzman',
-      action: included ? (payload.ai_action === 'duzenlendi' ? 'review_edited' : 'review_approved') : 'review_rejected',
+      action: actionName,
       imaging_choice: payload.imaging_choice,
       ai_action: payload.ai_action,
       submitted_at: now,
@@ -576,10 +592,6 @@ export default function App() {
 
     const nextCases = vakalar.map((vaka) => {
       if (vaka.case_id !== caseId) return vaka;
-
-      const otherRole = rol === 'A' ? 'B' : 'A';
-      const otherKey = doctorKeyFor(otherRole);
-      const peer = vaka[otherKey] || {};
 
       let updatedPeer = { ...peer };
       if (peer.submitted_at) {

@@ -211,13 +211,20 @@ export default function Workstation({
   const submit = useCallback((action) => {
     if (isSubmitting) return;
 
+    const peer = vaka[rol === 'A' ? 'doctor_b' : 'doctor_a'] || {};
+    const isReviewingPeer = Boolean(peer.submitted_at && peer.ai_action === 'duzenlendi');
+
     let confirmMsg = '';
     if (action === 'onaylandi') {
-      confirmMsg = 'Yapay zeka önerisini onaylamak istediğinize emin misiniz?';
+      confirmMsg = isReviewingPeer 
+        ? 'Uzman kararını onaylamak istediğinize emin misiniz?'
+        : 'Yapay zeka önerisini onaylamak istediğinize emin misiniz?';
     } else if (action === 'duzenlendi') {
       confirmMsg = `Düzenlenmiş kararı kaydetmek istediğinize emin misiniz?\n\nSeçilen Görüntüleme: ${decision.imaging_choice}`;
     } else if (action === 'reddedildi') {
-      confirmMsg = 'Yapay zeka önerisini reddetmek istediğinize emin misiniz?';
+      confirmMsg = isReviewingPeer
+        ? 'Uzman kararını reddetmek istediğinize emin misiniz?'
+        : 'Yapay zeka önerisini reddetmek istediğinize emin misiniz?';
     }
 
     if (confirmMsg && !window.confirm(confirmMsg)) {
@@ -251,7 +258,7 @@ export default function Workstation({
       },
       dataset_edited: datasetEdited && included,
     });
-  }, [datasetDraft, decision, onDoctorSubmit, vaka, isSubmitting]);
+  }, [datasetDraft, decision, onDoctorSubmit, vaka, isSubmitting, rol]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -414,7 +421,10 @@ export default function Workstation({
                 
                 let actionText = '';
                 let badgeClass = '';
-                if (entry.action === 'review_approved' || entry.ai_action === 'onaylandi') {
+                if (entry.action === 'peer_approved') {
+                  actionText = 'Uzman Kararını Onayladı';
+                  badgeClass = 'approved';
+                } else if (entry.action === 'review_approved' || entry.ai_action === 'onaylandi') {
                   actionText = 'AI Önerisini Onayladı';
                   badgeClass = 'approved';
                 } else if (entry.action === 'review_edited' || entry.ai_action === 'duzenlendi') {
@@ -456,6 +466,11 @@ export default function Workstation({
           <div>
             <p className="eyebrow">Karar</p>
             <h2>{decision.imaging_choice || display.primary_recommendation}</h2>
+            {decision.imaging_choice && decision.imaging_choice !== display.primary_recommendation && (
+              <p className="ai-original-hint" style={{ fontSize: '0.8em', color: 'gray', marginTop: '4px', fontStyle: 'italic' }}>
+                AI Önerisi: {display.primary_recommendation}
+              </p>
+            )}
           </div>
           <strong>{listTotal === 0 ? 0 : listIndex + 1} / {listTotal}</strong>
         </div>
