@@ -210,6 +210,20 @@ export default function Workstation({
 
   const submit = useCallback((action) => {
     if (isSubmitting) return;
+
+    let confirmMsg = '';
+    if (action === 'onaylandi') {
+      confirmMsg = 'Yapay zeka önerisini onaylamak istediğinize emin misiniz?';
+    } else if (action === 'duzenlendi') {
+      confirmMsg = `Düzenlenmiş kararı kaydetmek istediğinize emin misiniz?\n\nSeçilen Görüntüleme: ${decision.imaging_choice}`;
+    } else if (action === 'reddedildi') {
+      confirmMsg = 'Yapay zeka önerisini reddetmek istediğinize emin misiniz?';
+    }
+
+    if (confirmMsg && !window.confirm(confirmMsg)) {
+      return;
+    }
+
     setIsSubmitting(true);
     // Güvenlik kilidi: Herhangi bir hatada butonların kilitli kalmaması için 3 saniye sonra kilidi aç
     window.setTimeout(() => setIsSubmitting(false), 3000);
